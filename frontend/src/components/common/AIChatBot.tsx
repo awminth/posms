@@ -15,12 +15,14 @@ import {
   DollarSign,
   FileSpreadsheet,
   UserCog,
+  Key,
 } from 'lucide-react';
 import { usePOS } from '../../context/POSContext';
 import { useLanguage } from '../../context/LanguageContext';
 import {
   ChatMessage,
-  FIXED_GEMINI_API_KEY,
+  getStoredApiKey,
+  saveApiKey,
   sendChatMessage,
 } from '../../services/geminiService';
 
@@ -79,9 +81,33 @@ export const AIChatBot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [showKeyConfig, setShowKeyConfig] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(() => {
+    try {
+      return localStorage.getItem('omnipos_gemini_api_key') || '';
+    } catch {
+      return '';
+    }
+  });
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleSaveKey = () => {
+    saveApiKey(apiKeyInput.trim());
+    setShowKeyConfig(false);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'model',
+        text:
+          language === 'my'
+            ? '✅ **Gemini API Key အသစ်ကို သိမ်းဆည်းပြီးပါပြီ။** ယခု မေးခွန်းများကို ပြန်လည်မေးမြန်းနိုင်ပါပြီခင်ဗျာ။'
+            : '✅ **Gemini API Key saved.** You can now ask questions!',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+  };
 
   // Initial welcome message on mount
   useEffect(() => {
@@ -139,9 +165,10 @@ Ask me anything about using the system, purchase vouchers, stock distribution, P
     setErrorMsg('');
 
     try {
+      const activeApiKey = getStoredApiKey();
       // Pass previous chat turns (excluding the initial welcome greeting if it's the only one)
       const apiHistory = updatedMessages.slice(1, -1);
-      const replyText = await sendChatMessage(apiHistory, query, FIXED_GEMINI_API_KEY);
+      const replyText = await sendChatMessage(apiHistory, query, activeApiKey);
 
       const botReply: ChatMessage = {
         role: 'model',
@@ -152,16 +179,22 @@ Ask me anything about using the system, purchase vouchers, stock distribution, P
       setMessages((prev) => [...prev, botReply]);
     } catch (err: any) {
       console.error('[AIChatBot] Error:', err);
-      let errStr = 'မေးခွန်းကို ဖြေဆိုရာတွင် အဆင်မပြေဖြစ်သွားပါသည်။ ထပ်မံကြိုးစားပေးပါ။';
-      if (err.message && err.message !== 'INVALID_API_KEY') {
-        errStr = `Error: ${err.message}`;
+      let errorFormatted = '';
+      if (err?.message === 'API_KEY_LEAKED_OR_INVALID' || String(err?.message || '').includes('403')) {
+        errorFormatted =
+          language === 'my'
+            ? `**Google Cloud မှ Gemini API Key အား ပိတ်ပင် (403 Leaked) ထားပါသည်:**\n\nGoogle ၏ လုံခြုံရေးစနစ်အရ စနစ်၏ Default API Key သည် Leaked ဖြစ်သွားသည့်အတွက် အသုံးပြုခွင့် ပိတ်လိုက်ခြင်း ဖြစ်ပါသည်။\n\nကျေးဇူးပြု၍ အထက်ရှိ **(🔑 Key)** ခလုတ်ကို နှိပ်၍သော်လည်းကောင်း၊ [Google AI Studio (အခမဲ့)](https://aistudio.google.com/app/apikey) မှ Gemini API Key အသစ်တစ်ခု ရယူကာ ထည့်သွင်းပေးပါခင်ဗျာ။`
+            : `**Gemini API Key Blocked by Google (403 Leaked / Invalid):**\n\nThe default API key was reported as leaked and revoked by Google Cloud.\n\nPlease click the **🔑 Key button** at the top or visit [Google AI Studio](https://aistudio.google.com/app/apikey) to generate a free API key and save it.`;
+        setShowKeyConfig(true);
+      } else {
+        errorFormatted = err?.message || 'မေးခွန်းကို ဖြေဆိုရာတွင် အဆင်မပြေဖြစ်သွားပါသည်။ ထပ်မံကြိုးစားပေးပါ။';
       }
 
       setMessages((prev) => [
         ...prev,
         {
           role: 'model',
-          text: `⚠️ **အမှားအယွင်း ဖြစ်ပေါ်ပါသည်:** ${errStr}`,
+          text: `⚠️ ${errorFormatted}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -268,6 +301,18 @@ Ask me anything about using the system, purchase vouchers, stock distribution, P
             </div>
 
             <div className="flex items-center gap-1">
+              {/* API Key Settings Button */}
+              <button
+                type="button"
+                onClick={() => setShowKeyConfig((v) => !v)}
+                className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
+                  showKeyConfig ? 'bg-white/30 text-amber-300' : 'hover:bg-white/20 text-white/90 hover:text-white'
+                }`}
+                title="Gemini API Key Settings"
+              >
+                <Key className="w-4 h-4" />
+              </button>
+
               {/* Clear History */}
               <button
                 type="button"
@@ -289,6 +334,47 @@ Ask me anything about using the system, purchase vouchers, stock distribution, P
               </button>
             </div>
           </div>
+
+          {/* Expandable API Key Settings Banner */}
+          {showKeyConfig && (
+            <div className="p-3 bg-slate-900 border-b border-slate-800 text-white space-y-2 text-xs shrink-0 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5" />
+                  Gemini API Key
+                </span>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-teal-300 hover:underline"
+                >
+                  Get Free Key ↗
+                </a>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-[11px] focus:outline-teal-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveKey}
+                  className="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 rounded-lg text-white font-bold text-xs cursor-pointer"
+                >
+                  Save
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                {language === 'my'
+                  ? 'Google AI Studio မှ ရရှိသော API Key ကို ထည့်ပါ။ Browser တွင် လုံခြုံစွာ သိမ်းဆည်းပေးမည် ဖြစ်ပါသည်။'
+                  : 'Enter your Google AI Studio API key. Saved securely in your browser.'}
+              </p>
+            </div>
+          )}
 
           {/* Messages Scroll Area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/60">

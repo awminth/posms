@@ -11,7 +11,27 @@ export interface ChatMessage {
 export const FIXED_GEMINI_API_KEY = 'AIzaSyCi_oMEDD_5dTQ7SOODsdlt4eEBkMDWA-Y';
 
 export function getStoredApiKey(): string {
+  try {
+    const saved = localStorage.getItem(GEMINI_STORAGE_KEY);
+    if (saved && saved.trim()) return saved.trim();
+  } catch {
+    /* ignore */
+  }
+  const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  if (envKey && envKey.trim()) return envKey.trim();
   return FIXED_GEMINI_API_KEY;
+}
+
+export function saveApiKey(key: string): void {
+  try {
+    if (key.trim()) {
+      localStorage.setItem(GEMINI_STORAGE_KEY, key.trim());
+    } else {
+      localStorage.removeItem(GEMINI_STORAGE_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 const POSMS_SYSTEM_INSTRUCTION = `
@@ -202,24 +222,16 @@ export async function sendChatMessage(
     return response.text || 'အဖြေ မရရှိနိုင်ပါ။ ကျေးဇူးပြု၍ ထပ်မံ ကြိုးစားပေးပါ။';
   } catch (error: any) {
     console.error('[GeminiService] Error generating content:', error);
-
-    // Fallback model trial if 2.5 is rate-limited or unavailable
-    try {
-      const fallbackResponse = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents,
-        config: {
-          systemInstruction: POSMS_SYSTEM_INSTRUCTION,
-          temperature: 0.7,
-        },
-      });
-      return fallbackResponse.text || 'အဖြေ မရရှိနိုင်ပါ။';
-    } catch (fallbackError: any) {
-      const msg = error?.message || fallbackError?.message || 'Gemini API Error';
-      if (msg.includes('API_KEY_INVALID') || msg.includes('403') || msg.includes('unregistered')) {
-        throw new Error('INVALID_API_KEY');
-      }
-      throw new Error(msg);
+    const msg = String(error?.message || '');
+    if (
+      msg.includes('leaked') ||
+      msg.includes('403') ||
+      msg.includes('API_KEY_INVALID') ||
+      msg.includes('PERMISSION_DENIED') ||
+      msg.includes('unregistered')
+    ) {
+      throw new Error('API_KEY_LEAKED_OR_INVALID');
     }
+    throw new Error(msg || 'Gemini API Error');
   }
 }
