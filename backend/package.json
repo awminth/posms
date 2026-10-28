@@ -11,7 +11,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed-purchases": "tsx scripts/seedPurchases.ts",
     "db:ensure-lots": "tsx scripts/ensureStockLots.ts",
-    "db:resync-mm": "tsx scripts/resyncMyanmarCatalog.ts"
+    "db:resync-mm": "tsx scripts/resyncMyanmarCatalog.ts",
+    "db:clear": "tsx scripts/clearData.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
