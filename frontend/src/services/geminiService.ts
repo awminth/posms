@@ -13,24 +13,66 @@ export const FIXED_GEMINI_API_KEY = 'AIzaSyCi_oMEDD_5dTQ7SOODsdlt4eEBkMDWA-Y';
 export function getStoredApiKey(): string {
   try {
     const saved = localStorage.getItem(GEMINI_STORAGE_KEY);
-    if (saved && saved.trim()) return saved.trim();
+    if (saved && saved.trim()) {
+      const cleanSaved = saved.trim();
+      if (cleanSaved !== FIXED_GEMINI_API_KEY) {
+        return cleanSaved;
+      }
+    }
   } catch {
     /* ignore */
   }
   const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  if (envKey && envKey.trim()) return envKey.trim();
-  return FIXED_GEMINI_API_KEY;
+  if (envKey && envKey.trim() && envKey.trim() !== FIXED_GEMINI_API_KEY) {
+    return envKey.trim();
+  }
+  return '';
 }
 
 export function saveApiKey(key: string): void {
   try {
-    if (key.trim()) {
-      localStorage.setItem(GEMINI_STORAGE_KEY, key.trim());
+    const clean = key.trim();
+    if (clean) {
+      localStorage.setItem(GEMINI_STORAGE_KEY, clean);
     } else {
       localStorage.removeItem(GEMINI_STORAGE_KEY);
     }
   } catch {
     /* ignore */
+  }
+}
+
+export async function testApiKey(apiKey: string): Promise<{ ok: boolean; message: string }> {
+  const clean = (apiKey || '').trim();
+  if (!clean) {
+    return { ok: false, message: 'API Key ရိုက်ထည့်ပေးရန် လိုအပ်ပါသည်။' };
+  }
+  if (clean === FIXED_GEMINI_API_KEY) {
+    return {
+      ok: false,
+      message: 'ဤ Key သည် Google မှ Leaked ဖြစ်၍ ပိတ်ထားသော Key အဟောင်း ဖြစ်နေပါသည်။ Google AI Studio မှ Key အသစ် ရယူပေးပါ။',
+    };
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: clean });
+    const res = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: 'Ping test',
+    });
+    if (res.text) {
+      return { ok: true, message: 'Google Gemini ချိတ်ဆက်မှု အောင်မြင်ပါသည်!' };
+    }
+    return { ok: false, message: 'Google ထံမှ အဖြေ မရရှိပါ။' };
+  } catch (err: any) {
+    const msg = String(err?.message || 'Google API ချိတ်ဆက်မှု မအောင်မြင်ပါ');
+    if (msg.includes('leaked') || (msg.includes('403') && msg.includes('key'))) {
+      return { ok: false, message: 'Google Error: ဤ API key အား Google က Leaked ဖြစ်၍ ပိတ်ထားပါသည်။ အသစ် ထပ်မံ ဖန်တီးပေးပါ။' };
+    }
+    if (msg.includes('API_KEY_INVALID') || msg.includes('not valid')) {
+      return { ok: false, message: 'Google Error: API Key မမှန်ကန်ပါ။ (API Key not valid)' };
+    }
+    return { ok: false, message: `Google Error: ${msg}` };
   }
 }
 
@@ -191,11 +233,15 @@ export async function sendChatMessage(
   userMessage: string,
   apiKey: string
 ): Promise<string> {
-  if (!apiKey) {
+  const cleanKey = (apiKey || '').trim();
+  if (!cleanKey) {
     throw new Error('API_KEY_REQUIRED');
   }
+  if (cleanKey === FIXED_GEMINI_API_KEY) {
+    throw new Error('API_KEY_LEAKED');
+  }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: cleanKey });
 
   // Format conversation history for Gemini API
   const contents = [
@@ -223,14 +269,11 @@ export async function sendChatMessage(
   } catch (error: any) {
     console.error('[GeminiService] Error generating content:', error);
     const msg = String(error?.message || '');
-    if (
-      msg.includes('leaked') ||
-      msg.includes('403') ||
-      msg.includes('API_KEY_INVALID') ||
-      msg.includes('PERMISSION_DENIED') ||
-      msg.includes('unregistered')
-    ) {
-      throw new Error('API_KEY_LEAKED_OR_INVALID');
+    if (msg.includes('leaked') || (msg.includes('403') && msg.includes('key'))) {
+      throw new Error('API_KEY_LEAKED');
+    }
+    if (msg.includes('API_KEY_INVALID') || msg.includes('not valid')) {
+      throw new Error('API_KEY_INVALID');
     }
     throw new Error(msg || 'Gemini API Error');
   }

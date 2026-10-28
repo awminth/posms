@@ -24,6 +24,7 @@ import {
   getStoredApiKey,
   saveApiKey,
   sendChatMessage,
+  testApiKey,
 } from '../../services/geminiService';
 
 const SUGGESTED_PROMPTS = [
@@ -81,32 +82,61 @@ export const AIChatBot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [showKeyConfig, setShowKeyConfig] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState(() => {
-    try {
-      return localStorage.getItem('omnipos_gemini_api_key') || '';
-    } catch {
-      return '';
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [keyTestFeedback, setKeyTestFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleSaveKey = async () => {
+    const keyVal = apiKeyInput.trim();
+    if (!keyVal) {
+      setKeyTestFeedback({
+        type: 'error',
+        text: 'API Key အလွတ် ဖြစ်နေပါသည်။ Google AI Studio မှ API Key ထည့်သွင်းပေးပါ။',
+      });
+      return;
     }
-  });
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+    setIsTestingKey(true);
+    setKeyTestFeedback(null);
+    try {
+      const result = await testApiKey(keyVal);
+      if (result.ok) {
+        saveApiKey(keyVal);
+        setKeyTestFeedback({
+          type: 'success',
+          text: '✅ Google Gemini သို့ ချိတ်ဆက်စစ်ဆေးမှု အောင်မြင်ပါသည်။ API Key ကို သိမ်းဆည်းလိုက်ပါပြီ!',
+        });
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'model',
+            text:
+              language === 'my'
+                ? '✅ **Gemini API Key အသစ် စစ်ဆေးအောင်မြင်ပြီး သိမ်းဆည်းပြီးပါပြီ။** ယခု မေးခွန်းများကို ပြန်လည်မေးမြန်းနိုင်ပါပြီခင်ဗျာ။'
+                : '✅ **Gemini API Key verified and saved.** You can now ask questions!',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+        setTimeout(() => {
+          setShowKeyConfig(false);
+        }, 1500);
+      } else {
+        setKeyTestFeedback({
+          type: 'error',
+          text: result.message,
+        });
+      }
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
 
-  const handleSaveKey = () => {
-    saveApiKey(apiKeyInput.trim());
-    setShowKeyConfig(false);
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: 'model',
-        text:
-          language === 'my'
-            ? '✅ **Gemini API Key အသစ်ကို သိမ်းဆည်းပြီးပါပြီ။** ယခု မေးခွန်းများကို ပြန်လည်မေးမြန်းနိုင်ပါပြီခင်ဗျာ။'
-            : '✅ **Gemini API Key saved.** You can now ask questions!',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
+  const handleClearKey = () => {
+    saveApiKey('');
+    setApiKeyInput('');
+    setKeyTestFeedback({
+      type: 'error',
+      text: 'API Key ကို ရှင်းလင်းပြီးပါပြီ။',
+    });
   };
 
   // Initial welcome message on mount
@@ -164,8 +194,24 @@ Ask me anything about using the system, purchase vouchers, stock distribution, P
     setIsLoading(true);
     setErrorMsg('');
 
+    const activeApiKey = getStoredApiKey();
+    if (!activeApiKey) {
+      setShowKeyConfig(true);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'model',
+          text:
+            language === 'my'
+              ? '⚠️ **Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်:**\n\nစနစ်၏ AI Chatbot အား အသုံးပြုနိုင်ရန် [Google AI Studio (အခမဲ့)](https://aistudio.google.com/app/apikey) မှ Gemini API Key တစ်ခု ရယူပြီး အထက်ပါ **🔑 Key ဘား** တွင် ထည့်သွင်း၍ **"စမ်းသပ်ပြီး သိမ်းမည်"** ခလုတ်ကို နှိပ်ပေးပါခင်ဗျာ။'
+              : '⚠️ **Gemini API Key Required:** Please enter your Gemini API key in the configuration bar above.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+      return;
+    }
+
     try {
-      const activeApiKey = getStoredApiKey();
       // Pass previous chat turns (excluding the initial welcome greeting if it's the only one)
       const apiHistory = updatedMessages.slice(1, -1);
       const replyText = await sendChatMessage(apiHistory, query, activeApiKey);
@@ -180,12 +226,18 @@ Ask me anything about using the system, purchase vouchers, stock distribution, P
     } catch (err: any) {
       console.error('[AIChatBot] Error:', err);
       let errorFormatted = '';
-      if (err?.message === 'API_KEY_LEAKED_OR_INVALID' || String(err?.message || '').includes('403')) {
+      if (err?.message === 'API_KEY_LEAKED') {
+        setShowKeyConfig(true);
         errorFormatted =
           language === 'my'
-            ? `**Google Cloud မှ Gemini API Key အား ပိတ်ပင် (403 Leaked) ထားပါသည်:**\n\nGoogle ၏ လုံခြုံရေးစနစ်အရ စနစ်၏ Default API Key သည် Leaked ဖြစ်သွားသည့်အတွက် အသုံးပြုခွင့် ပိတ်လိုက်ခြင်း ဖြစ်ပါသည်။\n\nကျေးဇူးပြု၍ အထက်ရှိ **(🔑 Key)** ခလုတ်ကို နှိပ်၍သော်လည်းကောင်း၊ [Google AI Studio (အခမဲ့)](https://aistudio.google.com/app/apikey) မှ Gemini API Key အသစ်တစ်ခု ရယူကာ ထည့်သွင်းပေးပါခင်ဗျာ။`
-            : `**Gemini API Key Blocked by Google (403 Leaked / Invalid):**\n\nThe default API key was reported as leaked and revoked by Google Cloud.\n\nPlease click the **🔑 Key button** at the top or visit [Google AI Studio](https://aistudio.google.com/app/apikey) to generate a free API key and save it.`;
+            ? `**Google မှ ဤ API Key အား Leaked ဖြစ်၍ ပိတ်ပင် (403) ထားပါသည်:**\n\nဤ Key အား Google လုံခြုံရေးအရ ပိတ်ထားပြီး ဖြစ်ပါသည်။ ကျေးဇူးပြု၍ [Google AI Studio](https://aistudio.google.com/app/apikey) တွင် **Create API key** အသစ် ပြုလုပ်ပြီး ရရှိလာသော Key အသစ်ကို အထက်ပါ 🔑 ဘားတွင် ထည့်သွင်း၍ **"စမ်းသပ်ပြီး သိမ်းမည်"** ကို နှိပ်ပေးပါခင်ဗျာ။`
+            : `**API Key Blocked by Google (403 Leaked):** Google Cloud has revoked this key. Please create a new key at Google AI Studio.`;
+      } else if (err?.message === 'API_KEY_INVALID') {
         setShowKeyConfig(true);
+        errorFormatted =
+          language === 'my'
+            ? `**API Key မှားယွင်းနေပါသည်:**\n\nထည့်သွင်းထားသော Key သည် မှန်ကန်မှု မရှိပါ။ Google AI Studio မှ ကူးယူထားသော Key အပြည့်အစုံကို ပြန်လည်စစ်ဆေး ထည့်သွင်းပေးပါ။`
+            : `**Invalid API Key:** The provided API key is invalid. Please check and re-enter.`;
       } else {
         errorFormatted = err?.message || 'မေးခွန်းကို ဖြေဆိုရာတွင် အဆင်မပြေဖြစ်သွားပါသည်။ ထပ်မံကြိုးစားပေးပါ။';
       }
@@ -337,41 +389,66 @@ Ask me anything about using the system, purchase vouchers, stock distribution, P
 
           {/* Expandable API Key Settings Banner */}
           {showKeyConfig && (
-            <div className="p-3 bg-slate-900 border-b border-slate-800 text-white space-y-2 text-xs shrink-0 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="p-3.5 bg-slate-900 border-b border-slate-800 text-white space-y-2.5 text-xs shrink-0 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-amber-300 flex items-center gap-1.5">
                   <Key className="w-3.5 h-3.5" />
-                  Gemini API Key
+                  Gemini API Key ထည့်သွင်းရန်
                 </span>
                 <a
                   href="https://aistudio.google.com/app/apikey"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] text-teal-300 hover:underline"
+                  className="text-[11px] text-teal-300 hover:underline flex items-center gap-1"
                 >
-                  Get Free Key ↗
+                  Google AI Studio (အခမဲ့ Key ယူရန်) ↗
                 </a>
               </div>
+
+              {keyTestFeedback && (
+                <div
+                  className={`p-2.5 rounded-xl text-xs leading-relaxed ${
+                    keyTestFeedback.type === 'success'
+                      ? 'bg-emerald-950/90 border border-emerald-500/60 text-emerald-200'
+                      : 'bg-rose-950/90 border border-rose-500/60 text-rose-200'
+                  }`}
+                >
+                  {keyTestFeedback.text}
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <input
-                  type="password"
+                  type="text"
                   placeholder="AIzaSy..."
                   value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-[11px] focus:outline-teal-500"
+                  onChange={(e) => {
+                    setApiKeyInput(e.target.value);
+                    setKeyTestFeedback(null);
+                  }}
+                  className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-teal-500 focus:ring-1 focus:ring-teal-400"
                 />
                 <button
                   type="button"
+                  disabled={isTestingKey}
                   onClick={handleSaveKey}
-                  className="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 rounded-lg text-white font-bold text-xs cursor-pointer"
+                  className="px-3.5 py-2 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 rounded-xl text-white font-bold text-xs cursor-pointer shrink-0 shadow-sm transition-all"
                 >
-                  Save
+                  {isTestingKey ? 'စစ်ဆေးနေသည်...' : 'စမ်းသပ်ပြီး သိမ်းမည်'}
                 </button>
+                {apiKeyInput && (
+                  <button
+                    type="button"
+                    onClick={handleClearKey}
+                    className="px-2.5 py-2 bg-slate-800 hover:bg-rose-900/50 border border-slate-700 hover:border-rose-700 text-slate-300 hover:text-rose-200 rounded-xl text-xs cursor-pointer transition-colors"
+                    title="Key ရှင်းလင်းမည်"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
-              <p className="text-[10px] text-slate-400">
-                {language === 'my'
-                  ? 'Google AI Studio မှ ရရှိသော API Key ကို ထည့်ပါ။ Browser တွင် လုံခြုံစွာ သိမ်းဆည်းပေးမည် ဖြစ်ပါသည်။'
-                  : 'Enter your Google AI Studio API key. Saved securely in your browser.'}
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                * [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) သို့ သွား၍ <strong>Create API key</strong> နှိပ်ပြီး ရရှိလာသော Key အသစ်ကို ဤနေရာတွင် ထည့်သွင်းပေးပါ။
               </p>
             </div>
           )}
