@@ -1,6 +1,7 @@
 -- =============================================================================
 -- OmniPOS (posMS) - Clean Database Script (Database ရှင်းလင်းရန် SQL)
 -- Admin account မှလွဲ၍ ကျန်ရှိသော Demo / Sample Data များအားလုံးကို ရှင်းလင်းပေးမည့် Script
+-- (TiDB Cloud တွင် တည်ရှိသော table name အတိအကျများဖြင့် ရေးသားထားပါသည်)
 -- =============================================================================
 
 SET FOREIGN_KEY_CHECKS = 0;
@@ -9,6 +10,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE order_items;
 TRUNCATE TABLE payments;
 TRUNCATE TABLE orders;
+TRUNCATE TABLE sale_return_items;
+TRUNCATE TABLE sale_returns;
 TRUNCATE TABLE shifts;
 TRUNCATE TABLE cash_drawer_logs;
 
@@ -16,7 +19,7 @@ TRUNCATE TABLE cash_drawer_logs;
 TRUNCATE TABLE purchase_return_items;
 TRUNCATE TABLE purchase_returns;
 TRUNCATE TABLE purchase_items;
-TRUNCATE TABLE purchase_vouchers;
+TRUNCATE TABLE purchases;
 TRUNCATE TABLE supplier_payments;
 TRUNCATE TABLE supplier_bills;
 TRUNCATE TABLE suppliers;
@@ -26,10 +29,11 @@ TRUNCATE TABLE stock_transfer_items;
 TRUNCATE TABLE stock_transfers;
 TRUNCATE TABLE stock_lots;
 TRUNCATE TABLE branch_stocks;
+TRUNCATE TABLE inventory_period_balances;
 
 -- ၄။ ဆိုင်အသုံးစရိတ် (Expenses)၊ အခြားဝင်ငွေနှင့် Audit Logs များ ရှင်းလင်းခြင်း
 TRUNCATE TABLE operating_expenses;
-TRUNCATE TABLE other_incomes;
+TRUNCATE TABLE other_income;
 TRUNCATE TABLE audit_logs;
 
 -- ၅။ Customer စာရင်းနှင့် Customer Credit များ ရှင်းလင်းခြင်း
@@ -38,7 +42,7 @@ TRUNCATE TABLE customers;
 -- ၆။ ကုန်ပစ္စည်းစာရင်း၊ အမျိုးအစားများနှင့် ယူနစ်များ ရှင်းလင်းခြင်း
 TRUNCATE TABLE products;
 TRUNCATE TABLE categories;
-TRUNCATE TABLE units;
+TRUNCATE TABLE product_units;
 
 -- ၇။ ဝန်ထမ်းအကောင့်များ ရှင်းလင်းခြင်း (SUPER_ADMIN မှလွဲ၍ ကျန်အကောင့်အားလုံးကို ဖျက်မည်)
 DELETE FROM users WHERE role NOT IN ('SUPER_ADMIN');
