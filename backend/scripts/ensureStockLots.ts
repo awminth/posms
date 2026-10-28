@@ -2,18 +2,10 @@
  * Ensure stock_lots schema + backfill opening lots from branch_stocks.
  * Usage: npx tsx scripts/ensureStockLots.ts
  */
-import mysql from 'mysql2/promise';
-import { env } from '../config/env.js';
+import { getPool } from '../config/db.js';
 import { backfillOpeningLots } from '../services/stockLotService.js';
 
-const c = await mysql.createConnection({
-  host: env.db.host,
-  port: env.db.port,
-  user: env.db.user,
-  password: env.db.password,
-  database: env.db.name,
-  multipleStatements: true,
-});
+const c = getPool();
 
 await c.query(`
 CREATE TABLE IF NOT EXISTS stock_lots (
@@ -61,7 +53,7 @@ if (!oiCols[0]?.c) {
   }
 }
 
-await c.end();
+// pool connection handled automatically
 
 const created = await backfillOpeningLots();
 console.log(`stock_lots ready; backfilled ${created} opening lot(s)`);

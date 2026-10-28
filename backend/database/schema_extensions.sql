@@ -210,7 +210,16 @@ SET @col_exists := (
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'supplier_bills' AND COLUMN_NAME = 'purchase_id'
 );
 SET @sql := IF(@col_exists = 0,
-  'ALTER TABLE supplier_bills ADD COLUMN purchase_id VARCHAR(36) NULL, ADD INDEX idx_sb_purchase (purchase_id)',
+  'ALTER TABLE supplier_bills ADD COLUMN purchase_id VARCHAR(36) NULL',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (
+  SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'supplier_bills' AND INDEX_NAME = 'idx_sb_purchase'
+);
+SET @sql := IF(@idx_exists = 0,
+  'ALTER TABLE supplier_bills ADD INDEX idx_sb_purchase (purchase_id)',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -294,6 +303,15 @@ SET @col_exists := (
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_items' AND COLUMN_NAME = 'stock_lot_id'
 );
 SET @sql := IF(@col_exists = 0,
-  'ALTER TABLE order_items ADD COLUMN stock_lot_id VARCHAR(36) NULL AFTER product_id, ADD INDEX idx_oi_lot (stock_lot_id)',
+  'ALTER TABLE order_items ADD COLUMN stock_lot_id VARCHAR(36) NULL AFTER product_id',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (
+  SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_items' AND INDEX_NAME = 'idx_oi_lot'
+);
+SET @sql := IF(@idx_exists = 0,
+  'ALTER TABLE order_items ADD INDEX idx_oi_lot (stock_lot_id)',
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

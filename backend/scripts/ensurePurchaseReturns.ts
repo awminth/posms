@@ -1,11 +1,6 @@
-import mysql from 'mysql2/promise';
+import { getPool } from '../config/db.js';
 
-const c = await mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: 'root',
-  database: 'mt_posms',
-});
+const c = getPool();
 
 await c.query(`
 CREATE TABLE IF NOT EXISTS purchase_returns (
@@ -45,4 +40,4 @@ CREATE TABLE IF NOT EXISTS purchase_return_items (
 `);
 
 console.log('purchase_returns tables ready');
-await c.end();
+process.exit(0);
