@@ -11,14 +11,14 @@ services:
       - key: PORT
         value: 10000
       - key: DB_HOST
-        sync: false
+        value: gateway01.ap-southeast-1.prod.aws.tidbcloud.com
       - key: DB_PORT
-        value: 4000
+        value: "4000"
       - key: DB_USER
-        sync: false
+        value: 3DP6TakphsvPJD5.root
       - key: DB_PASSWORD
         sync: false
       - key: DB_NAME
-        value: test
+        value: posms
       - key: DB_SSL
         value: "true"
