@@ -1,0 +1,12 @@
+{
+  "name": "posms-monorepo",
+  "version": "3.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npm start --prefix backend",
+    "build": "npm run build --prefix backend",
+    "dev": "npm run dev --prefix backend",
+    "db:migrate": "npm run db:migrate --prefix backend",
+    "postinstall": "npm install --prefix backend"
+  }
+}

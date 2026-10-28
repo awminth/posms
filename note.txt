@@ -1,0 +1,9 @@
+-Purchaseသွင်းရင် item name, qty, P.Price, ကုန်ဝယ်သယ်ခ
+-Purchase Return, Report
+-Cash purchase, Credit purchase
+-Purchaseကိုအရင်သွင်းမယ်၊ သွင်းပြီဆိုတာနဲ့ Main Storeထဲကိုတန်းရောက်မယ်၊ အဲ့ကနေမှ Branch ကိုခွဲပေးမယ်၊
+-Salesကနေ Branchအလိုက် qtyကိုနှုတ်
+
+COGS = (Opening + Purchase) - Closing
+Gross Profit = Revenue - COGS
+Net Profit = (Gross Profit + Income) - Expense(other expense)
