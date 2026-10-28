@@ -84,6 +84,11 @@ export const AIChatBot: React.FC = () => {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [keyTestFeedback, setKeyTestFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showKeyConfig, setShowKeyConfig] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(() => getStoredApiKey());
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const handleSaveKey = async () => {
     const keyVal = apiKeyInput.trim();
