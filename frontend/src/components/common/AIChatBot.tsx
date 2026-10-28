@@ -14,6 +14,7 @@ import {
   Store,
   DollarSign,
   FileSpreadsheet,
+  UserCog,
 } from 'lucide-react';
 import { usePOS } from '../../context/POSContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -24,6 +25,13 @@ import {
 } from '../../services/geminiService';
 
 const SUGGESTED_PROMPTS = [
+  {
+    icon: UserCog,
+    titleMy: 'Login အကောင့်အသစ် ဖောက်နည်း',
+    titleEn: 'Create user / login account',
+    prompt: 'OmniPOS စနစ်ထဲမှာ login account အသစ်တစ်ခု ဘယ်လိုဖောက်ရမလဲ၊ ဘယ် menu နဲ့ ဘယ်ခလုတ်တွေကို နှိပ်ရမလဲ တိတိကျကျ ရှင်းပြပေးပါ။',
+    tab: 'users' as const,
+  },
   {
     icon: Store,
     titleMy: 'ကုန်ဝယ်ယူမှု (Purchase) သွင်းနည်း',
