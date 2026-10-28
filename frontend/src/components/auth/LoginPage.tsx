@@ -26,6 +26,7 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [mismatchBranch, setMismatchBranch] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -95,14 +96,16 @@ export const LoginPage: React.FC = () => {
         const assigned = matchedUser
           ? branches.find((b) => b.id === matchedUser.branchId)
           : undefined;
+        setMismatchBranch(assigned || null);
         setErrorMessage(
           language === 'my'
-            ? `ဤအကောင့်သည် ${assigned ? `"${assigned.name}"` : 'မိမိတာဝန်ကျဆိုင်ခွဲ'} ကိုသာ ရွေးချယ်၍ ဝင်ရောက်နိုင်ပါသည်။`
+            ? `ဤအကောင့်သည် ${assigned ? `"${assigned.name}"` : 'မိမိတာဝန်ကျဆိုင်ခွဲ'} ကိုသာ ရွေးချယ်၍ ဝင်ရောက်ခွင့်ရှိပါသည်။`
             : `This account can only sign in to its assigned branch${assigned ? ` (${assigned.name})` : ''}.`
         );
         return;
       }
 
+      setMismatchBranch(null);
       if (!result) {
         setErrorMessage(t('login.invalid_credentials'));
         return;
@@ -285,9 +288,29 @@ export const LoginPage: React.FC = () => {
               </label>
 
               {errorMessage && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>{errorMessage}</span>
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex flex-col gap-2">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+                    <span className="leading-relaxed">{errorMessage}</span>
+                  </div>
+                  {mismatchBranch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleBranchChange(mismatchBranch.id);
+                        setErrorMessage('');
+                        setMismatchBranch(null);
+                      }}
+                      className="self-start text-[11px] font-bold px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>
+                        {language === 'my'
+                          ? `"${mismatchBranch.name}" သို့ ပြောင်းလဲမည်`
+                          : `Switch to "${mismatchBranch.name}"`}
+                      </span>
+                    </button>
+                  )}
                 </div>
               )}
 

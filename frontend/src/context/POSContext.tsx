@@ -53,6 +53,8 @@ interface POSContextType {
   branches: Branch[];
   currentBranch: Branch;
   setCurrentBranchId: (id: string) => void;
+  addBranch: (data: Partial<Branch>) => Promise<Branch>;
+  updateBranch: (id: string, updates: Partial<Branch>) => Promise<void>;
   currentUser: CashierUser;
   demoUsers: CashierUser[];
   users: CashierUser[];
@@ -818,7 +820,14 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       persistSession(data.user, workingBranch, rememberMe, pin);
       goToAppAfterLogin();
       return true;
-    } catch {
+    } catch (err: any) {
+      if (
+        err?.message?.includes('BRANCH_MISMATCH') ||
+        err?.response?.data?.message?.includes('BRANCH_MISMATCH') ||
+        err?.data?.message?.includes('BRANCH_MISMATCH')
+      ) {
+        return 'BRANCH_MISMATCH';
+      }
       return false;
     }
   };
@@ -840,7 +849,14 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       persistSession(data.user, workingBranch, rememberMe, password);
       goToAppAfterLogin();
       return true;
-    } catch {
+    } catch (err: any) {
+      if (
+        err?.message?.includes('BRANCH_MISMATCH') ||
+        err?.response?.data?.message?.includes('BRANCH_MISMATCH') ||
+        err?.data?.message?.includes('BRANCH_MISMATCH')
+      ) {
+        return 'BRANCH_MISMATCH';
+      }
       return false;
     }
   };
@@ -1238,6 +1254,17 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await refreshData();
   };
 
+  const addBranch = async (data: Partial<Branch>) => {
+    const branch = await posApi.createBranch(data);
+    await refreshData();
+    return branch;
+  };
+
+  const updateBranch = async (id: string, updates: Partial<Branch>) => {
+    await posApi.updateBranch(id, updates);
+    await refreshData();
+  };
+
   return (
     <POSContext.Provider
       value={{
@@ -1247,6 +1274,8 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         branches: !isAuthenticated || canAccessAllBranches ? branches : accessibleBranches,
         currentBranch,
         setCurrentBranchId: setCurrentBranchIdGuarded,
+        addBranch,
+        updateBranch,
         currentUser,
         demoUsers,
         users: scopedUsers,

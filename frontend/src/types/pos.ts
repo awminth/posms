@@ -26,6 +26,7 @@ export interface Branch {
   type: BranchType;
   address: string;
   city: string;
+  stateOrDivision?: string;
   phone: string;
   email: string;
   taxRate: number; // in percentage e.g. 5%

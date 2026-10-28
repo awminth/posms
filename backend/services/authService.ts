@@ -47,12 +47,22 @@ export async function loginUser(input: {
   const user = rows[0];
   if (!user) throw new AppError('User not found', 401);
 
+  // Branch restriction check:
+  // Admin / Super Admin can login to any branch.
+  // Branch-specific staff must match their assigned branch_id.
+  const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ADMIN';
+  if (!isSuperAdmin && user.branch_id) {
+    if (input.branchId && input.branchId !== user.branch_id) {
+      throw new AppError('BRANCH_MISMATCH', 403);
+    }
+  }
+
   await pool.query(`UPDATE users SET last_login_at = NOW() WHERE id = ?`, [user.id]);
 
   const mapped = mapUser(user);
   return {
     user: mapped,
-    branchId: input.branchId || mapped.branchId || undefined,
+    branchId: isSuperAdmin ? (input.branchId || mapped.branchId || undefined) : mapped.branchId,
   };
 }
 
